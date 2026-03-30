@@ -1,0 +1,26 @@
+node_modules/
+dist/
+
+# Tauri / Rust build output
+src-tauri/target/
+
+# Python cache
+__pycache__/
+*.py[cod]
+python_engine/__pycache__/
+
+# Local verification / temp output
+.codex_py_compile/
+.codex_pdf_verify/
+
+# Generated reports, logs, and sample output
+logs/
+flight_reports/
+*.pdf
+*.xlsx
+
+# Environment / OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
