@@ -82,7 +82,7 @@ export default function MessagesTab({
             <thead>
               <tr>
                 <th>Elapsed Time</th>
-                {missionStartTime ? <th>Date / Time</th> : null}
+                {missionStartTime ? <th>Time</th> : null}
                 <th>Type</th>
                 <th>Severity</th>
                 <th>Message</th>
@@ -92,7 +92,7 @@ export default function MessagesTab({
               {visibleMessages.map((message, index) => (
                 <tr key={`${message.type}-${message.timeS ?? index}-${index}`}>
                   <td>{formatPlaybackTime(message.timeS, maxTimeS)}</td>
-                  {missionStartTime ? <td>{formatMissionMoment(message.timeS, missionStartTime)}</td> : null}
+                  {missionStartTime ? <td>{formatMissionMoment(message.timeS, missionStartTime, { timeOnly: true })}</td> : null}
                   <td>{message.type}</td>
                   <td>
                     <span className={severityClassName(message.severity)}>{message.severity.toUpperCase()}</span>

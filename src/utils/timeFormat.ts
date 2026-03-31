@@ -1,4 +1,27 @@
 // File purpose: Shared helpers for formatting mission and playback time values.
+const INDIA_TIMEZONE = "Asia/Kolkata";
+const INDIA_TIMEZONE_LABEL = "IST";
+
+const dateFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: INDIA_TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+const weekdayFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: INDIA_TIMEZONE,
+  weekday: "long",
+});
+
+const timeFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: INDIA_TIMEZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
 export function shouldUseMinuteTime(maxTimeS: number | null | undefined) {
   return (maxTimeS ?? 0) >= 300;
 }
@@ -25,24 +48,16 @@ function formatClockParts(totalSeconds: number) {
   };
 }
 
-function formatUtcClock(date: Date) {
-  const hours = String(date.getUTCHours()).padStart(2, "0");
-  const minutes = String(date.getUTCMinutes()).padStart(2, "0");
-  const seconds = String(date.getUTCSeconds()).padStart(2, "0");
-
-  return `${hours}:${minutes}:${seconds}`;
+function formatIndiaDate(date: Date) {
+  return dateFormatter.format(date);
 }
 
-function formatUtcDate(date: Date) {
-  const year = String(date.getUTCFullYear());
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+function formatIndiaWeekday(date: Date) {
+  return weekdayFormatter.format(date);
 }
 
-function formatUtcWeekday(date: Date) {
-  return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][date.getUTCDay()];
+function formatIndiaClock(date: Date) {
+  return timeFormatter.format(date);
 }
 
 export function formatMissionDateParts(missionStartTime: string | null | undefined) {
@@ -53,9 +68,9 @@ export function formatMissionDateParts(missionStartTime: string | null | undefin
 
   const date = new Date(missionStartMs);
   return {
-    date: formatUtcDate(date),
-    day: formatUtcWeekday(date),
-    time: `${formatUtcClock(date)} UTC`,
+    date: formatIndiaDate(date),
+    day: formatIndiaWeekday(date),
+    time: `${formatIndiaClock(date)} ${INDIA_TIMEZONE_LABEL}`,
   };
 }
 
@@ -64,6 +79,7 @@ export function formatMissionMoment(
   missionStartTime: string | null | undefined,
   options?: {
     compact?: boolean;
+    timeOnly?: boolean;
   },
 ) {
   if (timeS === null || timeS === undefined || Number.isNaN(timeS)) {
@@ -75,17 +91,22 @@ export function formatMissionMoment(
     return "N/A";
   }
 
-  const utcDate = new Date(missionStartMs + (timeS * 1000));
+  const absoluteDate = new Date(missionStartMs + (timeS * 1000));
   const compact = options?.compact ?? false;
-  const datePart = formatUtcDate(utcDate);
-  const dayPart = formatUtcWeekday(utcDate);
-  const timePart = formatUtcClock(utcDate);
+  const timeOnly = options?.timeOnly ?? false;
+  const datePart = formatIndiaDate(absoluteDate);
+  const dayPart = formatIndiaWeekday(absoluteDate);
+  const timePart = `${formatIndiaClock(absoluteDate)} ${INDIA_TIMEZONE_LABEL}`;
+
+  if (timeOnly) {
+    return timePart;
+  }
 
   if (compact) {
     return `${datePart} ${timePart}`;
   }
 
-  return `${datePart} | ${dayPart} | ${timePart} UTC`;
+  return `${datePart} | ${dayPart} | ${timePart}`;
 }
 
 export function formatPlaybackTime(

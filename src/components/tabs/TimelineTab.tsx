@@ -136,7 +136,7 @@ export default function TimelineTab({
             <thead>
               <tr>
                 <th>Elapsed Time</th>
-                {missionStartTime ? <th>Date / Time</th> : null}
+                {missionStartTime ? <th>Time</th> : null}
                 <th>Category</th>
                 <th>Severity</th>
                 <th>Event</th>
@@ -146,7 +146,7 @@ export default function TimelineTab({
               {previewEvents.map((event, index) => (
                 <tr key={`${event.label}-${event.timeS}-${index}`}>
                   <td>{formatPlaybackTime(event.timeS, maxTimeS)}</td>
-                  {missionStartTime ? <td>{formatMissionMoment(event.timeS, missionStartTime)}</td> : null}
+                  {missionStartTime ? <td>{formatMissionMoment(event.timeS, missionStartTime, { timeOnly: true })}</td> : null}
                   <td>{event.category}</td>
                   <td>
                     <span className={severityClassName(event.severity)}>{event.severity.toUpperCase()}</span>
