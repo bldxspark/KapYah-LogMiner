@@ -32,6 +32,7 @@ type CesiumGlobePanelProps = {
   currentTimeS: number | null;
   followDrone: boolean;
   resetToken: number;
+  isFullscreen?: boolean;
 };
 
 const ALTITUDE_SCALE = 3;
@@ -301,6 +302,21 @@ function setGroundStartView(
   });
 }
 
+function syncViewerSize(viewer: Viewer, host: HTMLDivElement | null) {
+  if (!host || viewer.isDestroyed()) {
+    return false;
+  }
+
+  const { clientWidth, clientHeight } = host;
+  if (clientWidth <= 0 || clientHeight <= 0) {
+    return false;
+  }
+
+  viewer.resize();
+  viewer.scene.requestRender();
+  return true;
+}
+
 export default function CesiumGlobePanel({
   routePoints,
   eventMarkers,
@@ -308,6 +324,7 @@ export default function CesiumGlobePanel({
   currentTimeS,
   followDrone,
   resetToken,
+  isFullscreen = false,
 }: CesiumGlobePanelProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
@@ -545,6 +562,59 @@ export default function CesiumGlobePanel({
     viewer.trackedEntity = undefined;
     setGroundStartView(viewer, routePoints, 0, { duration: 1.2 });
   }, [resetToken, routePoints]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) {
+      return;
+    }
+
+    const controller = viewer.scene.screenSpaceCameraController;
+    controller.enableZoom = false;
+
+    const restoreZoomTimer = window.setTimeout(() => {
+      if (!viewer.isDestroyed()) {
+        controller.enableZoom = true;
+      }
+    }, isFullscreen ? 500 : 250);
+
+    return () => {
+      window.clearTimeout(restoreZoomTimer);
+      if (!viewer.isDestroyed()) {
+        controller.enableZoom = true;
+      }
+    };
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    const host = hostRef.current;
+    if (!viewer || !host) {
+      return;
+    }
+
+    let frameCount = 0;
+    let cancelled = false;
+
+    const syncUntilStable = () => {
+      if (cancelled || viewer.isDestroyed()) {
+        return;
+      }
+
+      const sized = syncViewerSize(viewer, host);
+      frameCount += 1;
+
+      if ((!sized || frameCount < 6) && frameCount < 12) {
+        window.requestAnimationFrame(syncUntilStable);
+      }
+    };
+
+    window.requestAnimationFrame(syncUntilStable);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isFullscreen]);
 
   return (
     <div className="cesium-shell cesium-shell-immersive">

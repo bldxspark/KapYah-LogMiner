@@ -16,6 +16,7 @@ import RcHealthTab from "../components/tabs/RcHealthTab";
 import MapTab from "../components/tabs/MapTab";
 import companyMark from "../assets/kapyah-company-mark-redico.png";
 import companyMarkBlack from "../assets/kapyah-company-mark-black.jpeg";
+import { formatMissionDateParts } from "../utils/timeFormat";
 import type { AnalysisData, SummaryOverview } from "../types/analysis";
 
 type HomePageProps = {
@@ -803,6 +804,7 @@ export default function HomePage({ activeTab, onSelectTab, resetToken, onLoadedS
   }
 
   const overview = analysis?.overview ?? { ...emptyOverview, logName: selectedLogName };
+  const missionDateParts = formatMissionDateParts(overview.dateTime);
   const displayHomeLocation = buildLocationLabel(homePlaceName, overview.homeLocation);
 
   const moduleContent = analysis
@@ -917,6 +919,11 @@ export default function HomePage({ activeTab, onSelectTab, resetToken, onLoadedS
                 <p className="workspace-copy">
                   {overview.vehicleType ?? "Vehicle"} | {overview.totalFlightDuration ?? "Duration unavailable"} | {overview.gpsStatus ?? "GPS status unavailable"}
                 </p>
+                {missionDateParts ? (
+                  <p className="workspace-copy">
+                    {missionDateParts.date} | {missionDateParts.day} | {missionDateParts.time}
+                  </p>
+                ) : null}
                 <div className="mission-stat-pills">
                   <span className="mission-pill">{overview.flightModes.length} modes</span>
                   <span className="mission-pill">{analysis?.timeline.totalEvents ?? 0} events</span>

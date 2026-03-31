@@ -1,6 +1,6 @@
 // File purpose: Timeline tab for mission events, summaries, and synthetic boundary markers.
 import MetricList from "../MetricList";
-import { formatPlaybackTime } from "../../utils/timeFormat";
+import { formatMissionDateParts, formatMissionMoment, formatPlaybackTime } from "../../utils/timeFormat";
 import type { TimelineAnalysis, TimelineEvent } from "../../types/analysis";
 
 type TimelineTabProps = TimelineAnalysis & {
@@ -73,9 +73,13 @@ function buildTimelineScenario(
     return "Timeline review did not contain enough event detail to build a mission sequence summary.";
   }
 
-  const startTime = formatPlaybackTime(firstEvent.timeS, firstEvent.timeS ?? 0, { missionStartTime });
-  const endTime = formatPlaybackTime(lastEvent?.timeS ?? firstEvent.timeS, lastEvent?.timeS ?? firstEvent.timeS ?? 0, { missionStartTime });
-  const opening = `Timeline review indicates that the mission sequence begins with ${firstEvent.detail} at ${startTime} and continues through ${totalEvents} recorded event${totalEvents === 1 ? "" : "s"} until the final logged point at ${endTime}, where the sequence closes with ${lastEvent?.detail ?? "the last recorded event"}.`;
+  const missionStartLabel = formatMissionDateParts(missionStartTime);
+  const startMoment = missionStartLabel
+    ? `${missionStartLabel.date} | ${missionStartLabel.day} | ${missionStartLabel.time}`
+    : formatPlaybackTime(firstEvent.timeS, firstEvent.timeS ?? 0);
+  const endMoment = formatMissionMoment(lastEvent?.timeS ?? firstEvent.timeS, missionStartTime);
+  const endTime = formatPlaybackTime(lastEvent?.timeS ?? firstEvent.timeS, lastEvent?.timeS ?? firstEvent.timeS ?? 0);
+  const opening = `Timeline review indicates that the mission sequence begins with ${firstEvent.detail} at ${startMoment} and continues through ${totalEvents} recorded event${totalEvents === 1 ? "" : "s"} until the final logged point at ${endMoment}, where the sequence closes with ${lastEvent?.detail ?? "the last recorded event"} after ${endTime}.`;
   const modeStory = modeTransitions.length
     ? ` During this progression, ${modeTransitions.length} mode transition${modeTransitions.length === 1 ? "" : "s"} ${modeTransitions.length === 1 ? "is" : "are"} visible in the timeline, beginning with ${firstMode?.detail ?? firstMode?.label ?? "an initial mode change"}${latestMode && latestMode !== firstMode ? ` and later reaching ${latestMode.detail ?? latestMode.label}` : ""}.`
     : " No distinct mode-transition markers were extracted from the reviewed event stream.";
@@ -131,7 +135,8 @@ export default function TimelineTab({
           <table className="data-table">
             <thead>
               <tr>
-                <th>Time</th>
+                <th>Elapsed Time</th>
+                {missionStartTime ? <th>Date / Time</th> : null}
                 <th>Category</th>
                 <th>Severity</th>
                 <th>Event</th>
@@ -140,7 +145,8 @@ export default function TimelineTab({
             <tbody>
               {previewEvents.map((event, index) => (
                 <tr key={`${event.label}-${event.timeS}-${index}`}>
-                  <td>{formatPlaybackTime(event.timeS, maxTimeS, { missionStartTime })}</td>
+                  <td>{formatPlaybackTime(event.timeS, maxTimeS)}</td>
+                  {missionStartTime ? <td>{formatMissionMoment(event.timeS, missionStartTime)}</td> : null}
                   <td>{event.category}</td>
                   <td>
                     <span className={severityClassName(event.severity)}>{event.severity.toUpperCase()}</span>

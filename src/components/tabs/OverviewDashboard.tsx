@@ -1,5 +1,6 @@
 // File purpose: Overview dashboard summarizing mission status, flight envelope, and key findings.
 import MetricList from "../MetricList";
+import { formatMissionDateParts } from "../../utils/timeFormat";
 import type { SummaryOverview } from "../../types/analysis";
 
 type OverviewDashboardProps = {
@@ -177,6 +178,7 @@ export default function OverviewDashboard({
   airborneFlightTime,
   averageSpeed,
   envelopeMaxSpeed,
+  dateTime,
   vehicleType,
   totalFlightDuration,
   armDisarmTime,
@@ -200,6 +202,7 @@ export default function OverviewDashboard({
   keyAnomalies,
 }: OverviewDashboardProps) {
   const primaryModes = buildPrimaryModes(flightModes);
+  const missionDateParts = formatMissionDateParts(dateTime);
   const gpsDataAvailable = hasUsableGps(gpsStatus, homeLocation);
   const missionAssessment = buildMissionAssessment(failsafeEvents, errorMessages, keyWarnings, keyAnomalies);
   const gpsConfidence = buildGpsConfidence(gpsDataAvailable, satelliteCount);
@@ -215,6 +218,7 @@ export default function OverviewDashboard({
           <MetricList
             items={[
               { label: "Vehicle Type", value: vehicleType ?? "Unknown" },
+              { label: "Mission Timestamp", value: missionDateParts ? `${missionDateParts.date} | ${missionDateParts.day} | ${missionDateParts.time}` : "Unavailable" },
               { label: "Flight Duration", value: totalFlightDuration ?? "Unavailable" },
               { label: "Arm / Disarm", value: armDisarmTime ?? "Unavailable" },
               { label: "Mission Count", value: flightCount },

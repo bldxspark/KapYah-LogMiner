@@ -145,7 +145,7 @@ function buildChartData(series: ChartSeries[]) {
 }
 
 function chartRangeLabel(range: ChartRange, maxTimeS: number, missionStartTime?: string | null) {
-  return `${formatPlaybackTime(range.start, maxTimeS, { missionStartTime })} - ${formatPlaybackTime(range.end, maxTimeS, { missionStartTime })}`;
+  return `${formatPlaybackTime(range.start, maxTimeS)} - ${formatPlaybackTime(range.end, maxTimeS)}`;
 }
 
 export default function LineChartPanel({ title, subtitle, series, maxTimeS, yAxisLabel, missionStartTime }: LineChartPanelProps) {
@@ -421,7 +421,7 @@ export default function LineChartPanel({ title, subtitle, series, maxTimeS, yAxi
                       tickCount={tickCount}
                       minTickGap={12}
                       interval="preserveStartEnd"
-                      tickFormatter={(value) => formatPlaybackTime(Number(value), totalDurationS, { compact: true, missionStartTime })}
+                      tickFormatter={(value) => formatPlaybackTime(Number(value), totalDurationS, { compact: true })}
                     />
                     <YAxis
                       yAxisId="left"
@@ -449,7 +449,7 @@ export default function LineChartPanel({ title, subtitle, series, maxTimeS, yAxi
                           const formatted = formatValue(value as number);
                           return item?.unit ? `${formatted} ${item.unit}` : formatted;
                         }}
-                        labelFormatter={(value) => `Time ${formatPlaybackTime(Number(value), totalDurationS, { missionStartTime })}`}
+                        labelFormatter={(value) => `Elapsed ${formatPlaybackTime(Number(value), totalDurationS)}`}
                       />
                     ) : null}
                     <Legend wrapperStyle={{ paddingTop: 10 }} />
@@ -536,7 +536,7 @@ export default function LineChartPanel({ title, subtitle, series, maxTimeS, yAxi
                     tickCount={tickCount}
                     minTickGap={12}
                     interval="preserveStartEnd"
-                    tickFormatter={(value) => formatPlaybackTime(Number(value), totalDurationS, { compact: true, missionStartTime })}
+                    tickFormatter={(value) => formatPlaybackTime(Number(value), totalDurationS, { compact: true })}
                   />
                   <YAxis
                     yAxisId="left"
@@ -564,7 +564,7 @@ export default function LineChartPanel({ title, subtitle, series, maxTimeS, yAxi
                           const formatted = formatValue(value as number);
                           return item?.unit ? `${formatted} ${item.unit}` : formatted;
                         }}
-                        labelFormatter={(value) => `Time ${formatPlaybackTime(Number(value), totalDurationS, { missionStartTime })}`}
+                        labelFormatter={(value) => `Elapsed ${formatPlaybackTime(Number(value), totalDurationS)}`}
                       />
                     ) : null}
                   <Legend wrapperStyle={{ paddingTop: 10 }} />

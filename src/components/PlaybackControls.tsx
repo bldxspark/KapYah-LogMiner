@@ -35,8 +35,8 @@ export default function PlaybackControls({
       <div className="playback-bar playback-bar-slider-only">
         <div className="playback-slider-wrap">
           <div className="playback-scale">
-            <span>{formatPlaybackTime(0, maxValue, { compact: true, missionStartTime })}</span>
-            <span>{formatPlaybackTime(maxValue, maxValue, { compact: true, missionStartTime })}</span>
+            <span>{formatPlaybackTime(0, maxValue, { compact: true })}</span>
+            <span>{formatPlaybackTime(maxValue, maxValue, { compact: true })}</span>
           </div>
           <input
             className="playback-slider"
@@ -77,8 +77,8 @@ export default function PlaybackControls({
       </div>
       <div className="playback-slider-wrap">
         <div className="playback-scale">
-          <span>{formatPlaybackTime(0, maxValue, { compact: true, missionStartTime })}</span>
-          <span>{formatPlaybackTime(maxValue, maxValue, { compact: true, missionStartTime })}</span>
+          <span>{formatPlaybackTime(0, maxValue, { compact: true })}</span>
+          <span>{formatPlaybackTime(maxValue, maxValue, { compact: true })}</span>
         </div>
         <input
           className="playback-slider"

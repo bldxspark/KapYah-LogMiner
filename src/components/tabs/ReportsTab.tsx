@@ -1,5 +1,6 @@
 // File purpose: Report export tab for combined Excel/PDF generation and recent report actions.
 import MetricList from "../MetricList";
+import { formatMissionMoment } from "../../utils/timeFormat";
 import type { ReportSummary } from "../../types/analysis";
 
 type RecentReportEntry = {
@@ -9,6 +10,15 @@ type RecentReportEntry = {
   pdfPath: string;
   createdAt: string;
 };
+
+function formatReportCreatedAt(createdAt: string) {
+  const parsed = Date.parse(createdAt);
+  if (Number.isNaN(parsed)) {
+    return createdAt;
+  }
+
+  return formatMissionMoment(0, new Date(parsed).toISOString());
+}
 
 type ReportsTabProps = ReportSummary & {
   exportFolder: string | null;
@@ -85,7 +95,7 @@ export default function ReportsTab({
             {recentReports.map((entry) => (
               <article key={entry.folderPath} className="report-history-item">
                 <div className="report-history-copy">
-                  <h5>{entry.folderName} <span>{new Date(entry.createdAt).toLocaleString()}</span></h5>
+                  <h5>{entry.folderName} <span>{formatReportCreatedAt(entry.createdAt)}</span></h5>
                   <p>{entry.folderPath}</p>
                 </div>
                 <div className="report-history-actions">

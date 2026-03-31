@@ -1,6 +1,6 @@
 // File purpose: Mission messages tab for warnings, errors, and timeline message review.
 import MetricList from "../MetricList";
-import { formatPlaybackTime } from "../../utils/timeFormat";
+import { formatMissionMoment, formatPlaybackTime } from "../../utils/timeFormat";
 import type { MessageSummary } from "../../types/analysis";
 
 function isMissionBoundaryMessage(text: string) {
@@ -81,7 +81,8 @@ export default function MessagesTab({
           <table className="data-table">
             <thead>
               <tr>
-                <th>Time</th>
+                <th>Elapsed Time</th>
+                {missionStartTime ? <th>Date / Time</th> : null}
                 <th>Type</th>
                 <th>Severity</th>
                 <th>Message</th>
@@ -90,7 +91,8 @@ export default function MessagesTab({
             <tbody>
               {visibleMessages.map((message, index) => (
                 <tr key={`${message.type}-${message.timeS ?? index}-${index}`}>
-                  <td>{formatPlaybackTime(message.timeS, maxTimeS, { missionStartTime })}</td>
+                  <td>{formatPlaybackTime(message.timeS, maxTimeS)}</td>
+                  {missionStartTime ? <td>{formatMissionMoment(message.timeS, missionStartTime)}</td> : null}
                   <td>{message.type}</td>
                   <td>
                     <span className={severityClassName(message.severity)}>{message.severity.toUpperCase()}</span>
