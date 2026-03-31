@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 import re
+import sys
 from typing import Any
 from xml.sax.saxutils import escape
 
@@ -207,6 +208,26 @@ def _join_limited(values: list[str], fallback: str = "None recorded", limit: int
     return ", ".join(cleaned[:limit])
 
 
+def _bundled_asset_root() -> Path | None:
+    bundled_root = getattr(sys, "_MEIPASS", None)
+    return Path(bundled_root) if bundled_root else None
+
+
+def _resolve_logo_path() -> Path | None:
+    bundled_asset_root = _bundled_asset_root()
+    if bundled_asset_root:
+        bundled_logo = bundled_asset_root / "assets" / "kapyah-company-mark-redico.png"
+        if bundled_logo.exists():
+            return bundled_logo
+
+    workspace_root = Path(__file__).resolve().parents[1]
+    workspace_logo = workspace_root / "src" / "assets" / "kapyah-company-mark-redico.png"
+    if workspace_logo.exists():
+        return workspace_logo
+
+    return None
+
+
 def _build_mission_overview_paragraphs(analysis: dict[str, Any], generated_at: datetime) -> list[str]:
     overview = analysis["overview"]
     timeline = analysis["timeline"]
@@ -218,49 +239,52 @@ def _build_mission_overview_paragraphs(analysis: dict[str, Any], generated_at: d
         f"The total detected flight duration is {_text(overview.get('totalFlightDuration'))}, and {_time_window_sentence(overview.get('armDisarmTime'))}"
     )
     paragraph_two = (
-        f"The log indicates {overview.get('flightCount', 0)} mission instance(s) and {timeline.get('totalEvents', 0)} timeline event(s). "
-        f"Detected flight modes include {_text(overview.get('flightModes'), 'Unavailable')}. The messages view contains "
-        f"{messages.get('infoCount', 0)} informational record(s), {messages.get('warningCount', 0)} warning record(s), and "
-        f"{messages.get('errorCount', 0)} error record(s)."
+        f"The analysis pipeline reviewed {timeline.get('totalEvents', 0)} timeline events and {messages.get('totalMessages', 0)} captured messages. "
+        f"Mission status is currently assessed as {_assessment_label(overview, messages)} based on the detected warnings, anomalies, failsafe indicators, and message severity counts."
     )
-    return [paragraph_one, paragraph_two]
+    paragraph_three = (
+        f"Primary flight mode activity includes {_join_limited(overview.get('flightModes', []), fallback='no confirmed modes')}. "
+        f"The mission recorded {_text(overview.get('flightCount'), fallback='0')} detected flight segment(s), with orientation sourced from {_text(overview.get('orientationSource'))}."
+    )
+    return [paragraph_one, paragraph_two, paragraph_three]
 
 
 def _build_navigation_paragraphs(analysis: dict[str, Any]) -> list[str]:
     overview = analysis["overview"]
     map_data = analysis["map"]
     route_points = map_data.get("routePoints", [])
-    highlighted_route = map_data.get("highlightedRoute", [])
     paragraph_one = (
-        f"Navigation review shows GPS status as {_text(overview.get('gpsStatus'))} with satellite count reported as "
-        f"{_text(overview.get('satelliteCount'))}. Home location details are {_text(overview.get('homeLocation'))}, "
-        f"distance traveled is {_text(overview.get('distanceTraveled'))}, maximum height reached is {_text(overview.get('maxAltitude'))}, "
-        f"and maximum recorded speed is {_text(overview.get('maxSpeed'))}."
+        f"GPS review indicates {_text(overview.get('gpsStatus'))} with {_text(overview.get('satelliteCount'))} satellites observed near the home position. "
+        f"The mission home location is reported as {_text(overview.get('homeLocation'))}, and the estimated distance traveled is {_text(overview.get('distanceTraveled'))}."
     )
     paragraph_two = (
-        f"The map reconstruction contains {map_data.get('totalTrackPoints', 0)} route point(s), with {len(highlighted_route)} highlighted route marker(s) "
-        f"and {len(map_data.get('eventMarkers', []))} mapped event marker(s). A total of {len(route_points)} usable route sample(s) were preserved for playback and review."
+        f"A total of {len(route_points)} route samples were available for playback and map reconstruction. "
+        f"Maximum height reached was {_text(overview.get('maxAltitude'))}, while maximum speed peaked at {_text(overview.get('maxSpeed'))}."
     )
-    return [paragraph_one, paragraph_two]
+    paragraph_three = (
+        "Map playback in the desktop application remains synchronized with the reconstructed route, enabling event review alongside route progress, "
+        "drone-follow behavior, and resettable mission perspective controls."
+    )
+    return [paragraph_one, paragraph_two, paragraph_three]
 
 
 def _build_timeline_message_paragraphs(analysis: dict[str, Any]) -> list[str]:
     timeline = analysis["timeline"]
     messages = analysis["messages"]
-    highlighted = timeline.get("highlightedEvents", [])
-    mode_transitions = timeline.get("modeTransitions", [])
-    warning_events = timeline.get("warningEvents", [])
-    highlighted_text = _join_limited([event.get("detail", "") for event in highlighted], fallback="No highlighted events were identified")
-    mode_text = _join_limited([event.get("label", "") for event in mode_transitions], fallback="No distinct mode changes were extracted")
+    overview = analysis["overview"]
     paragraph_one = (
-        f"Timeline review highlights the following notable events: {highlighted_text}. "
-        f"Detected mode transitions include {mode_text}."
+        f"Timeline review captured {timeline.get('totalEvents', 0)} events across the mission window. "
+        f"Synthetic mission boundary markers are included so operators can quickly identify start and end conditions even when the raw log is incomplete."
     )
     paragraph_two = (
-        f"The message stream reports the last logged event as {_text(messages.get('lastEvent'))}. Warning-focused timeline entries count as {len(warning_events)}, "
-        f"while raw message rows captured for review total {len(messages.get('rawMessages', []))}."
+        f"Message review counted {messages.get('infoCount', 0)} informational, {messages.get('warningCount', 0)} warning, and {messages.get('errorCount', 0)} error messages. "
+        f"Key warnings include {_join_limited(overview.get('keyWarnings', []))}, while notable anomalies include {_join_limited(overview.get('keyAnomalies', []))}."
     )
-    return [paragraph_one, paragraph_two]
+    paragraph_three = (
+        f"Failsafe-related observations for this mission: {_join_limited(overview.get('failsafeEvents', []))}. "
+        "These message and event streams can be cross-referenced directly in the app for deeper investigation."
+    )
+    return [paragraph_one, paragraph_two, paragraph_three]
 
 
 def _build_system_health_paragraphs(analysis: dict[str, Any]) -> list[str]:
@@ -268,46 +292,36 @@ def _build_system_health_paragraphs(analysis: dict[str, Any]) -> list[str]:
     power = analysis["power"]
     vibration = analysis["vibration"]
     rc = analysis["rc"]
-    rc_channels = rc.get("channelAverages", [])
-    channel_text = _join_limited(
-        [f"{channel.get('label', 'RC')} average {channel.get('average', 'Unavailable')}" for channel in rc_channels],
-        fallback="No RC channel average values were available",
-        limit=8,
-    )
     paragraph_one = (
-        f"Power analysis shows starting voltage {_text(power.get('startingVoltage'))}, ending voltage {_text(power.get('endingVoltage'))}, minimum voltage {_text(power.get('minimumVoltage'))}, "
-        f"maximum current {_text(power.get('maximumCurrent'))}, average current {_text(power.get('averageCurrent'))}, and overall power health {_text(power.get('powerHealth'))}."
+        f"Power analysis reported {_text(power.get('batteryStatus'))} with a minimum battery reading of {_text(power.get('minVoltage'))} and peak current of {_text(power.get('maxCurrent'))}. "
+        f"Communication strength was {_text(overview.get('communicationStrength'))}, and signal strength was {_text(overview.get('signalStrength'))}."
     )
     paragraph_two = (
-        f"Vibration review shows average X/Y/Z values of {_text(vibration.get('averageX'))}, {_text(vibration.get('averageY'))}, and {_text(vibration.get('averageZ'))}. "
-        f"Maximum X/Y/Z values are {_text(vibration.get('maxX'))}, {_text(vibration.get('maxY'))}, and {_text(vibration.get('maxZ'))}, with dominant axis {_text(vibration.get('dominantAxis'))} and severity {_text(vibration.get('severity'))}."
+        f"Vibration review used {_text(vibration.get('sampleCount'), fallback='0')} samples. "
+        f"The highest observed vibration was {_text(vibration.get('peakVibration'))}, supporting quick inspection of airframe and IMU stability."
     )
     paragraph_three = (
-        f"Control-link review shows RC health {_text(rc.get('rcHealth'))}, average link quality {_text(rc.get('averageLinkQuality'))}, average RSSI {_text(rc.get('averageRssi'))}, "
-        f"peak link quality {_text(rc.get('peakLinkQuality'))}, peak RSSI {_text(rc.get('peakRssi'))}, and {rc.get('activeChannelCount', 0)} active channel(s). {channel_text}."
+        f"RC system review identified {_text(overview.get('rcHealth'))} with up to {MAX_RC_CHANNELS} supported channels, and {_text(rc.get('activeChannelCount'), fallback='0')} channels were active in this mission."
     )
-    paragraph_four = (
-        f"Orientation source is {_text(overview.get('orientationSource'))}, IMU summary is {_text(overview.get('imuCount'))}, proximity sensor count is {_text(overview.get('proximitySensorCount'))}, "
-        f"communication strength is {_text(overview.get('communicationStrength'))}, and signal strength is {_text(overview.get('signalStrength'))}."
-    )
-    return [paragraph_one, paragraph_two, paragraph_three, paragraph_four]
+    return [paragraph_one, paragraph_two, paragraph_three]
 
 
 def _build_findings_paragraphs(analysis: dict[str, Any]) -> list[str]:
     overview = analysis["overview"]
-    messages = analysis["messages"]
-    assessment = _assessment_label(overview, messages)
-    warnings = _join_limited(overview.get("keyWarnings", []), fallback="No major warnings were highlighted")
-    anomalies = _join_limited(overview.get("keyAnomalies", []), fallback="No anomalies were highlighted")
-    errors = _join_limited(overview.get("errorMessages", []), fallback="No critical error messages were highlighted")
-    failsafes = _join_limited(overview.get("failsafeEvents", []), fallback="No failsafe events were recorded")
+    reports = analysis["reports"]
+    assessment = _assessment_label(overview, analysis["messages"])
     paragraph_one = (
-        f"Key warning summary: {warnings}. Key anomaly summary: {anomalies}. Error summary: {errors}. Failsafe summary: {failsafes}."
+        f"Overall mission assessment: {assessment}. "
+        f"Recorded errors include {_join_limited(overview.get('errorMessages', []))}."
     )
     paragraph_two = (
-        f"Mission status: {assessment}. This status is derived from the warnings, anomalies, failsafe records, and message severity counts detected in the reviewed log."
+        "The generated Excel workbook and PDF report are aligned into one export folder so the reviewed mission can be shared, archived, "
+        "or attached to downstream operational reporting workflows without additional manual collation."
     )
-    return [paragraph_one, paragraph_two]
+    paragraph_three = (
+        f"Report summary focus areas were {_join_limited(reports.get('highlights', []), fallback='mission overview, route review, system health, and event inspection')}."
+    )
+    return [paragraph_one, paragraph_two, paragraph_three]
 
 
 def generate_excel_report(analysis: dict[str, Any], output_dir: str | None = None, report_folder: Path | None = None) -> str:
@@ -316,210 +330,131 @@ def generate_excel_report(analysis: dict[str, Any], output_dir: str | None = Non
 
     overview = analysis["overview"]
     timeline = analysis["timeline"]
+    messages = analysis["messages"]
     power = analysis["power"]
     vibration = analysis["vibration"]
     rc = analysis["rc"]
     map_data = analysis["map"]
-    messages = analysis["messages"]
-    reports = analysis["reports"]
 
     overview_df = pd.DataFrame(
         [
-            {"Metric": "Log Name", "Value": overview["logName"]},
-            {"Metric": "Date Time", "Value": overview["dateTime"]},
-            {"Metric": "Vehicle Type", "Value": overview["vehicleType"]},
-            {"Metric": "Total Flight Duration", "Value": overview["totalFlightDuration"]},
-            {"Metric": "Arm/Disarm Time", "Value": overview["armDisarmTime"]},
-            {"Metric": "Flight Count", "Value": overview["flightCount"]},
-            {"Metric": "Flight Modes", "Value": ", ".join(overview["flightModes"])} ,
-            {"Metric": "GPS Status", "Value": overview["gpsStatus"]},
-            {"Metric": "Satellite Count", "Value": overview["satelliteCount"]},
-            {"Metric": "Home Location Details", "Value": overview["homeLocation"]},
-            {"Metric": "Distance Traveled", "Value": overview["distanceTraveled"]},
-            {"Metric": "Max Height Reached", "Value": overview["maxAltitude"]},
-            {"Metric": "Max Speed", "Value": overview["maxSpeed"]},
-            {"Metric": "Orientation Source", "Value": overview["orientationSource"]},
-            {"Metric": "IMU Summary", "Value": overview["imuCount"]},
-            {"Metric": "Proximity Sensor Count", "Value": overview["proximitySensorCount"]},
-            {"Metric": "RC Health", "Value": overview["rcHealth"]},
-            {"Metric": "Communication Strength", "Value": overview["communicationStrength"]},
-            {"Metric": "Signal Strength", "Value": overview["signalStrength"]},
-            {"Metric": "Failsafe Events", "Value": ", ".join(overview["failsafeEvents"])} ,
-        ]
+            ["Log Name", _text(overview.get("logName"))],
+            ["Vehicle Type", _text(overview.get("vehicleType"))],
+            ["Mission Date Time", _text(overview.get("dateTime"))],
+            ["Flight Duration", _text(overview.get("totalFlightDuration"))],
+            ["Mission Window", _text(overview.get("armDisarmTime"))],
+            ["Flight Count", _text(overview.get("flightCount"), fallback="0")],
+            ["Primary Modes", _text(overview.get("flightModes"))],
+            ["GPS Status", _text(overview.get("gpsStatus"))],
+            ["Satellite Count", _text(overview.get("satelliteCount"))],
+            ["Home Location", _text(overview.get("homeLocation"))],
+            ["Distance Traveled", _text(overview.get("distanceTraveled"))],
+            ["Max Altitude", _text(overview.get("maxAltitude"))],
+            ["Max Speed", _text(overview.get("maxSpeed"))],
+            ["Orientation Source", _text(overview.get("orientationSource"))],
+            ["IMU Count", _text(overview.get("imuCount"))],
+            ["Proximity Sensors", _text(overview.get("proximitySensorCount"))],
+            ["RC Health", _text(overview.get("rcHealth"))],
+            ["Communication Strength", _text(overview.get("communicationStrength"))],
+            ["Signal Strength", _text(overview.get("signalStrength"))],
+            ["Failsafe Events", _text(overview.get("failsafeEvents"))],
+            ["Warnings", _text(overview.get("keyWarnings"))],
+            ["Anomalies", _text(overview.get("keyAnomalies"))],
+            ["Errors", _text(overview.get("errorMessages"))],
+        ],
+        columns=["Metric", "Value"],
     )
 
-    timeline_df = pd.DataFrame(timeline["events"], columns=["timeS", "label", "detail", "category", "severity"])
-    signal_samples_df = pd.DataFrame(
-        timeline["signalSamples"],
-        columns=["timeS", "headingDeg", "rssiPercent", "linkQualityPercent", "satellites", "proximityM"],
-    )
-    power_summary_df = pd.DataFrame(
-        [
-            {"Metric": "Starting Voltage", "Value": power["startingVoltage"]},
-            {"Metric": "Ending Voltage", "Value": power["endingVoltage"]},
-            {"Metric": "Minimum Voltage", "Value": power["minimumVoltage"]},
-            {"Metric": "Maximum Current", "Value": power["maximumCurrent"]},
-            {"Metric": "Average Current", "Value": power["averageCurrent"]},
-            {"Metric": "Power Health", "Value": power["powerHealth"]},
-            {"Metric": "Duration (s)", "Value": power["durationS"]},
-        ]
-    )
-    power_samples_df = pd.DataFrame(power["samples"], columns=["timeS", "voltage", "current"])
-    vibration_summary_df = pd.DataFrame(
-        [
-            {"Metric": "Average X", "Value": vibration["averageX"]},
-            {"Metric": "Average Y", "Value": vibration["averageY"]},
-            {"Metric": "Average Z", "Value": vibration["averageZ"]},
-            {"Metric": "Max X", "Value": vibration["maxX"]},
-            {"Metric": "Max Y", "Value": vibration["maxY"]},
-            {"Metric": "Max Z", "Value": vibration["maxZ"]},
-            {"Metric": "Dominant Axis", "Value": vibration["dominantAxis"]},
-            {"Metric": "Severity", "Value": vibration["severity"]},
-            {"Metric": "Duration (s)", "Value": vibration["durationS"]},
-        ]
-    )
-    vibration_samples_df = pd.DataFrame(vibration["samples"], columns=["timeS", "x", "y", "z"])
-    rc_health_df = pd.DataFrame(
-        [
-            {"Metric": "RC Health", "Value": rc["rcHealth"]},
-            {"Metric": "Average Link Quality", "Value": rc["averageLinkQuality"]},
-            {"Metric": "Average RSSI", "Value": rc["averageRssi"]},
-            {"Metric": "Peak Link Quality", "Value": rc["peakLinkQuality"]},
-            {"Metric": "Peak RSSI", "Value": rc["peakRssi"]},
-            {"Metric": "Active Channel Count", "Value": rc["activeChannelCount"]},
-            *[
-                {"Metric": f"Average {channel['label']}", "Value": channel["average"]}
-                for channel in rc["channelAverages"]
-            ],
-            {"Metric": "Duration (s)", "Value": rc["durationS"]},
-        ]
-    )
-    rc_samples_df = pd.DataFrame(rc["samples"], columns=["timeS", "linkQualityPercent", "rssiPercent"])
-    rc_channels_df = pd.DataFrame(rc["channelSamples"], columns=["timeS", *RC_CHANNEL_COLUMNS])
-    gps_df = pd.DataFrame(
-        [
-            {
-                "gpsStatus": map_data["gpsStatus"],
-                "satelliteCount": map_data["satelliteCount"],
-                "homeLocation": map_data["homeLocation"],
-                "totalTrackPoints": map_data["totalTrackPoints"],
-            }
-        ]
-    )
-    map_route_df = pd.DataFrame(
-        map_data["routePoints"],
-        columns=["timeS", "lat", "lon", "alt", "speed", "satellites", "gpsStatus"],
-    )
-    event_markers_df = pd.DataFrame(map_data["eventMarkers"], columns=["timeS", "label", "detail", "category", "severity"])
-    modes_df = pd.DataFrame({"mode": overview["flightModes"]})
-    message_counts_df = pd.DataFrame(
-        [
-            {"Category": "Errors", "Count": messages["errorCount"]},
-            {"Category": "Warnings", "Count": messages["warningCount"]},
-            {"Category": "Info", "Count": messages["infoCount"]},
-        ]
-    )
-    raw_messages_df = pd.DataFrame(messages["rawMessages"], columns=["timeS", "type", "severity", "text"])
-    warnings_df = pd.DataFrame({"warning": overview["keyWarnings"]})
-    anomalies_df = pd.DataFrame({"anomaly": overview["keyAnomalies"]})
-    report_meta_df = pd.DataFrame(
-        [
-            {
-                "Format": reports["format"],
-                "AvailableSheets": ", ".join(reports["availableSheets"]),
-                "IsReady": reports["isReady"],
-            }
-        ]
-    )
+    timeline_df = pd.DataFrame(timeline.get("events", []))
+    if timeline_df.empty:
+        timeline_df = pd.DataFrame(columns=["timeS", "title", "description", "severity"])
 
-    power_samples_start = len(power_summary_df) + 2
-    vibration_samples_start = len(vibration_summary_df) + 2
-    rc_samples_start = len(rc_health_df) + 2
+    message_records_df = pd.DataFrame(messages.get("records", []))
+    if message_records_df.empty:
+        message_records_df = pd.DataFrame(columns=["timeS", "source", "severity", "text"])
+
+    message_counts_df = pd.DataFrame(messages.get("counts", []))
+    if message_counts_df.empty:
+        message_counts_df = pd.DataFrame(columns=["label", "count"])
+
+    power_df = pd.DataFrame(power.get("samples", []))
+    if power_df.empty:
+        power_df = pd.DataFrame(columns=["timeS", "voltage", "current", "remainingPct"])
+
+    vibration_df = pd.DataFrame(vibration.get("samples", []))
+    if vibration_df.empty:
+        vibration_df = pd.DataFrame(columns=["timeS", "x", "y", "z", "magnitude"])
+
+    map_route_df = pd.DataFrame(map_data.get("routePoints", []))
+    if map_route_df.empty:
+        map_route_df = pd.DataFrame(columns=["timeS", "lat", "lon", "alt", "speed"])
+
+    rc_df = pd.DataFrame(rc.get("samples", []))
+    if rc_df.empty:
+        rc_df = pd.DataFrame(columns=["timeS", *RC_CHANNEL_COLUMNS])
 
     with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
-        overview_df.to_excel(writer, sheet_name="Summary", index=False)
+        overview_df.to_excel(writer, sheet_name="Overview", index=False)
         timeline_df.to_excel(writer, sheet_name="Timeline", index=False)
-        signal_samples_df.to_excel(writer, sheet_name="SignalSamples", index=False)
-        power_summary_df.to_excel(writer, sheet_name="Power", index=False)
-        power_samples_df.to_excel(writer, sheet_name="Power", index=False, startrow=power_samples_start)
-        vibration_summary_df.to_excel(writer, sheet_name="Vibration", index=False)
-        vibration_samples_df.to_excel(writer, sheet_name="Vibration", index=False, startrow=vibration_samples_start)
-        rc_health_df.to_excel(writer, sheet_name="RcHealth", index=False)
-        rc_samples_df.to_excel(writer, sheet_name="RcHealth", index=False, startrow=rc_samples_start)
-        rc_channels_df.to_excel(writer, sheet_name="RcChannels", index=False)
-        map_route_df.to_excel(writer, sheet_name="MapRoute", index=False)
-        gps_df.to_excel(writer, sheet_name="GPS", index=False)
-        event_markers_df.to_excel(writer, sheet_name="EventMarkers", index=False)
-        modes_df.to_excel(writer, sheet_name="FlightModes", index=False)
+        message_records_df.to_excel(writer, sheet_name="Messages", index=False)
         message_counts_df.to_excel(writer, sheet_name="MessageCounts", index=False)
-        raw_messages_df.to_excel(writer, sheet_name="Messages", index=False)
-        warnings_df.to_excel(writer, sheet_name="Warnings", index=False)
-        anomalies_df.to_excel(writer, sheet_name="Anomalies", index=False)
-        report_meta_df.to_excel(writer, sheet_name="ReportMeta", index=False)
+        power_df.to_excel(writer, sheet_name="Power", index=False)
+        vibration_df.to_excel(writer, sheet_name="Vibration", index=False)
+        rc_df.to_excel(writer, sheet_name="RC", index=False)
+        map_route_df.to_excel(writer, sheet_name="MapRoute", index=False)
 
         workbook = writer.book
-        power_sheet = workbook["Power"]
-        vibration_sheet = workbook["Vibration"]
-        rc_health_sheet = workbook["RcHealth"]
-        rc_channels_sheet = workbook["RcChannels"]
-        map_route_sheet = workbook["MapRoute"]
-        message_counts_sheet = workbook["MessageCounts"]
+        power_sheet = writer.sheets["Power"]
+        vibration_sheet = writer.sheets["Vibration"]
+        rc_sheet = writer.sheets["RC"]
+        map_route_sheet = writer.sheets["MapRoute"]
+        message_counts_sheet = writer.sheets["MessageCounts"]
 
         _add_line_chart(
             power_sheet,
-            title="Power Profile",
-            y_axis_title="Voltage (V) / Current (A)",
+            title="Battery Voltage And Current",
+            y_axis_title="Voltage / Current",
             x_axis_title="Time",
             min_col=2,
             max_col=3,
-            header_row=power_samples_start + 1,
-            first_data_row=power_samples_start + 2,
-            last_data_row=power_samples_start + len(power_samples_df) + 1,
-            anchor="F2",
-            colors=["FF4A4A", "1F6FFF"],
-        )
-        _add_line_chart(
-            vibration_sheet,
-            title="Vibration Profile",
-            y_axis_title="Vibration",
-            x_axis_title="Time",
-            min_col=2,
-            max_col=4,
-            header_row=vibration_samples_start + 1,
-            first_data_row=vibration_samples_start + 2,
-            last_data_row=vibration_samples_start + len(vibration_samples_df) + 1,
-            anchor="F2",
-            colors=["FF4A4A", "F59E0B", "0F8BFF"],
-            height=10,
-        )
-        _add_line_chart(
-            rc_health_sheet,
-            title="RC Health Trend",
-            y_axis_title="Percent",
-            x_axis_title="Time",
-            min_col=2,
-            max_col=3,
-            header_row=rc_samples_start + 1,
-            first_data_row=rc_samples_start + 2,
-            last_data_row=rc_samples_start + len(rc_samples_df) + 1,
+            header_row=1,
+            first_data_row=2,
+            last_data_row=len(power_df) + 1,
             anchor="F2",
             colors=["FF4A4A", "0F8BFF"],
         )
         _add_line_chart(
-            rc_channels_sheet,
-            title="RC Channel Trend",
-            y_axis_title="Microseconds",
+            vibration_sheet,
+            title="Vibration Magnitude",
+            y_axis_title="Magnitude",
             x_axis_title="Time",
-            min_col=2,
-            max_col=9,
+            min_col=5,
+            max_col=5,
             header_row=1,
             first_data_row=2,
-            last_data_row=len(rc_channels_df) + 1,
-            anchor="L2",
-            colors=["FF4A4A", "F97316", "F59E0B", "84CC16", "14B8A6", "0F8BFF", "6366F1", "EC4899"],
-            width=22,
-            height=11,
+            last_data_row=len(vibration_df) + 1,
+            anchor="G2",
+            colors=["F97316"],
         )
+        active_rc_columns = [column for column in RC_CHANNEL_COLUMNS if column in rc_df.columns and rc_df[column].notna().any()]
+        if active_rc_columns:
+            first_col = rc_df.columns.get_loc(active_rc_columns[0]) + 1
+            last_col = rc_df.columns.get_loc(active_rc_columns[-1]) + 1
+            _add_line_chart(
+                rc_sheet,
+                title="RC Channel Trends",
+                y_axis_title="PWM",
+                x_axis_title="Time",
+                min_col=first_col,
+                max_col=last_col,
+                header_row=1,
+                first_data_row=2,
+                last_data_row=len(rc_df) + 1,
+                anchor="R2",
+                colors=["FF4A4A", "F97316", "F59E0B", "84CC16", "14B8A6", "0F8BFF", "6366F1", "EC4899"],
+                width=22,
+                height=11,
+            )
         _add_line_chart(
             map_route_sheet,
             title="Route Altitude and Speed",
@@ -621,12 +556,11 @@ def generate_pdf_report(analysis: dict[str, Any], output_dir: str | None = None,
     )
 
     story: list[Any] = []
-    workspace_root = Path(__file__).resolve().parents[1]
-    logo_path = workspace_root / "src" / "assets" / "kapyah-company-mark-redico.png"
+    logo_path = _resolve_logo_path()
     title_block = [
         Paragraph("KapYah Mission Analysis Report", styles["KapYahHeaderTitle"]),
     ]
-    if logo_path.exists():
+    if logo_path and logo_path.exists():
         logo = Image(str(logo_path), width=18 * mm, height=18 * mm)
         header_table = Table([[logo, title_block]], colWidths=[24 * mm, 146 * mm])
     else:
@@ -732,6 +666,3 @@ def generate_pdf_report(analysis: dict[str, Any], output_dir: str | None = None,
     )
     document.build(story)
     return str(pdf_path)
-
-
-

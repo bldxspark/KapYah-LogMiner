@@ -1,14 +1,36 @@
 # KapYah LogMiner
 
-KapYah LogMiner is a desktop application for local drone log analysis, mission review, playback, map inspection, diagnostics, and report generation.
+KapYah LogMiner is a desktop drone-log analysis application developed for **KapYah Industries Pvt. Ltd.** It is designed for local mission review, telemetry inspection, synchronized playback, route reconstruction, diagnostics, and structured report generation in a single desktop workflow.
 
-It is built with:
-- Tauri 2
-- React 19 + TypeScript + Vite
-- Python analysis/report pipeline
-- Cesium for route and playback visualization
+This software is part of the KapYah product and engineering ecosystem and is intended to support operational review, technical analysis, and export-ready reporting for supported flight logs.
 
-## Current Scope
+## Company
+
+- Company: **KapYah Industries Pvt. Ltd.**
+- Website: `https://www.kapyah.com/`
+- Product: **KapYah LogMiner**
+- Email: `contact@kapyah.com`
+
+## Developed By
+
+- **Durgesh Tiwari**
+- Embedded Software Engineer
+- KapYah Industries Pvt. Ltd.
+- GitHub: `https://github.com/bldxspark`
+- LinkedIn: `https://www.linkedin.com/in/durgesh-tiwari-9bab82238`
+- Email: `durgeshtiwari000x@gmail.com`
+
+## Product Overview
+
+KapYah LogMiner provides:
+- local drone log parsing and analysis
+- route playback and synchronized mission review
+- map-based route reconstruction with offline-safe fallback
+- Timeline, Power, Vibration, RC Info, Messages, Reports, and Help workflows
+- Excel and PDF report generation
+- recent-report management for previously exported analysis folders
+
+## Supported Log Formats
 
 KapYah LogMiner currently supports:
 - `.bin`
@@ -17,26 +39,40 @@ KapYah LogMiner currently supports:
 - `.ulg`
 - `.ulog`
 
-Key capabilities:
-- branded KapYah desktop experience
-- local log parsing and analysis
-- Overview, Timeline, Power, Vibration, RC Info, Map, Messages, Reports, and Help tabs
-- playback with follow drone and reset view
-- event markers and synthetic mission start/end markers
+## Core Features
+
+- KapYah-branded desktop experience
+- stable mission playback with Follow Drone and Reset View
+- synthetic mission start/end markers in timeline and message review
 - RC support for up to 16 channels
-- report export to a single named folder containing:
+- route line, start/end markers, drone marker, and event markers on the map
+- hybrid map behavior:
+  - online imagery when available
+  - offline-safe fallback when imagery is unavailable
+- report export into one named folder containing:
   - `flight_data.xlsx`
   - `mission_report.pdf`
-- Recent Reports actions for open folder, open Excel, open PDF, and delete
-- offline-safe map fallback for route and playback when online imagery is unavailable
+- Recent Reports actions for:
+  - open folder
+  - open Excel
+  - open PDF
+  - delete report folder
+
+## Technology Stack
+
+- **Desktop shell:** Tauri 2
+- **Frontend:** React 19 + TypeScript + Vite
+- **Backend analysis pipeline:** Python
+- **Map engine:** Cesium
+- **Report generation:** Excel + PDF export pipeline
 
 ## Project Layout
 
 ```text
-src/                 React UI, tabs, layout, styling, playback, map wiring
-src/assets/          Logos, fonts, splash video, marker assets
-src-tauri/           Tauri host app and Rust commands
-python_engine/       Python analyzers, parsers, and report export logic
+src/                 React UI, tabs, layout, styling, playback, and map wiring
+src/assets/          KapYah logos, fonts, splash video, and marker assets
+src-tauri/           Tauri host app, Rust commands, packaging config, installer assets
+python_engine/       Python analyzers, parsers, backend CLI, and report export logic
 public/Cesium/       Cesium static runtime assets
 ```
 
@@ -46,9 +82,11 @@ Important files:
 - [src/components/tabs/ReportsTab.tsx](src/components/tabs/ReportsTab.tsx)
 - [python_engine/analyzer.py](python_engine/analyzer.py)
 - [python_engine/export_report.py](python_engine/export_report.py)
+- [python_engine/build_backend.py](python_engine/build_backend.py)
 - [src-tauri/src/lib.rs](src-tauri/src/lib.rs)
+- [src-tauri/tauri.conf.json](src-tauri/tauri.conf.json)
 
-## Prerequisites
+## Development Prerequisites
 
 Install the following before running locally:
 - Node.js 18+ recommended
@@ -57,7 +95,7 @@ Install the following before running locally:
 - Rust toolchain
 - Tauri prerequisites for your platform
 
-Python packages used by the project:
+Python packages used by the development workflow:
 - `pymavlink`
 - `pandas`
 - `openpyxl`
@@ -92,7 +130,7 @@ Desktop app:
 npm run tauri:dev
 ```
 
-## Build
+## Build And Packaging
 
 Frontend production build:
 
@@ -100,11 +138,13 @@ Frontend production build:
 npm run build
 ```
 
-Desktop bundle:
+Desktop installer build:
 
 ```bash
 npm run tauri:build
 ```
+
+The packaged Windows build now includes the bundled backend runtime, so end users can install and run the desktop app without separately installing Python.
 
 ## Verification
 
@@ -122,19 +162,7 @@ cargo check
 
 from `src-tauri/`.
 
-If Python report logic changes, a quick compile check can be used:
-
-```powershell
-@'
-import py_compile
-py_compile.compile(
-    r'd:\work\drone-log-analyzer-desktop\python_engine\export_report.py',
-    cfile=r'd:\work\drone-log-analyzer-desktop\.codex_py_compile\export_report_verify.pyc',
-    doraise=True,
-)
-print("py_compile ok")
-'@ | python -
-```
+If Python logic changes, quick compile checks can be used as needed.
 
 ## Report Export Behavior
 
@@ -150,7 +178,7 @@ The save dialog suggests a timestamp-based folder name such as:
 report_2026_03_30_14_25_18
 ```
 
-Recent Reports stores folder references locally in browser storage within the desktop app.
+Recent Reports stores folder references locally in desktop app storage for quick reopening and cleanup.
 
 ## Map Notes
 
@@ -160,16 +188,17 @@ Map behavior is intentionally conservative:
 - route line, start/end markers, drone marker, event markers, playback, follow, and reset remain available
 - the map uses the SVG drone marker and does not use GLB playback logic
 
-## Branding Notes
+## Branding And Distribution Notes
 
-The app is branded for KapYah Industries Pvt. Ltd.
-
-Current branded behavior includes:
-- homepage branding
-- sidebar branding
+Current KapYah-specific product behavior includes:
+- KapYah homepage branding
+- KapYah sidebar branding
 - ivory day mode
-- startup splash video
-- KapYah external site links opened through Tauri
+- startup intro video
+- KapYah external website links opened through the Tauri desktop layer
+- branded installer output for Windows packaging
+
+For distribution, the recommended Windows installer is the NSIS setup executable generated by Tauri packaging.
 
 ## Maintenance Guidance
 
@@ -186,35 +215,27 @@ Before wrapping a change:
 The repo uses `.gitignore` for:
 - `node_modules`
 - build output
+- Rust/Tauri target output
 - Python cache
-- generated reports/logs
+- generated reports and logs
+- backend packaging artifacts
 - local verification artifacts
 
-Generated output, local logs, and temporary reports should not be committed.
+Generated output, local logs, temporary reports, and packaging intermediates should not be committed unless intentionally required.
 
 ## Ownership
 
-Product branding:
-- KapYah Industries Pvt. Ltd.
+- Product owner: **KapYah Industries Pvt. Ltd.**
+- Product identity and branding: **KapYah Industries Pvt. Ltd.**
+- Primary repository maintainer: **Durgesh Tiwari**
 
-## Author And Maintainer
+A [CODEOWNERS](CODEOWNERS) file is included for repository-level ownership.
 
-Primary developer:
-- Durgesh Tiwari
-- Embedded Software Engineer
-- KapYah Industries Pvt. Ltd.
+## Contact
 
-Public contact and profile:
-- Email: `durgeshtiwari000x@gmail.com`
-- GitHub: `https://github.com/bldxspark`
-- LinkedIn: `https://www.linkedin.com/in/durgesh-tiwari-9bab82238`
-
-## Code Ownership
-
-This project is currently maintained by:
-- Durgesh Tiwari
-
-A `CODEOWNERS` file is included for repository-level ownership.
+- Company website: `https://www.kapyah.com/`
+- Company contact: `contact@kapyah.com`
+- Developer contact: `durgeshtiwari000x@gmail.com`
 
 ## License
 

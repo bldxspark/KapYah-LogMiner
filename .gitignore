@@ -24,3 +24,8 @@ flight_reports/
 Thumbs.db
 .vscode/
 .idea/
+
+# Python backend packaging output
+src-tauri/bin/
+.pyinstaller-build/
+.pyinstaller-spec/

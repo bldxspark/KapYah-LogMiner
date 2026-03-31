@@ -21,25 +21,22 @@ fn workspace_python_engine_root() -> Result<PathBuf, String> {
     Ok(root.join("python_engine"))
 }
 
-fn python_engine_root(app: &AppHandle) -> Result<PathBuf, String> {
-    // Prefer the bundled resource path for packaged builds, then fall back to the workspace path for dev.
-    if let Ok(resource_dir) = app.path().resource_dir() {
-        let bundled_engine_root = resource_dir.join("python_engine");
-        if bundled_engine_root.exists() {
-            return Ok(bundled_engine_root);
-        }
+fn bundled_backend_executable(app: &AppHandle) -> Option<PathBuf> {
+    let resource_dir = app.path().resource_dir().ok()?;
+    let backend_executable = resource_dir.join("python_backend").join("python_backend.exe");
+    if backend_executable.exists() {
+        Some(backend_executable)
+    } else {
+        None
     }
-
-    let workspace_engine_root = workspace_python_engine_root()?;
-    if workspace_engine_root.exists() {
-        return Ok(workspace_engine_root);
-    }
-
-    Err("Python engine folder was not found in bundled resources or the workspace.".to_string())
 }
 
-fn run_python_command(app: &AppHandle, args: &[String]) -> Result<Value, String> {
-    let engine_root = python_engine_root(app)?;
+fn run_script_backend(args: &[String]) -> Result<Value, String> {
+    let engine_root = workspace_python_engine_root()?;
+    if !engine_root.exists() {
+        return Err("Python engine folder was not found in the workspace.".to_string());
+    }
+
     let script_path = engine_root.join("cli.py");
     if !script_path.exists() {
         return Err(format!(
@@ -53,7 +50,6 @@ fn run_python_command(app: &AppHandle, args: &[String]) -> Result<Value, String>
     attempts.push(("py".to_string(), vec!["-3".to_string()]));
 
     for (program, prefix_args) in attempts {
-        // Try common Windows Python launch paths in order without requiring user reconfiguration.
         let mut command = Command::new(&program);
         command.current_dir(&engine_root);
         for arg in &prefix_args {
@@ -86,6 +82,37 @@ fn run_python_command(app: &AppHandle, args: &[String]) -> Result<Value, String>
     }
 
     Err("Python runtime not found. Install Python and project dependencies first.".to_string())
+}
+
+fn run_backend_executable(executable_path: &PathBuf, args: &[String]) -> Result<Value, String> {
+    let working_dir = executable_path
+        .parent()
+        .ok_or("Packaged backend executable has no parent directory")?;
+
+    let mut command = Command::new(executable_path);
+    command.current_dir(working_dir);
+    for arg in args {
+        command.arg(arg);
+    }
+
+    let output = command.output().map_err(|err| err.to_string())?;
+    if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        return serde_json::from_str::<Value>(&stdout)
+            .map_err(|err| format!("Failed to parse analyzer JSON: {err}"));
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    Err(if !stdout.is_empty() { stdout } else { stderr })
+}
+
+fn run_python_command(app: &AppHandle, args: &[String]) -> Result<Value, String> {
+    if let Some(backend_executable) = bundled_backend_executable(app) {
+        return run_backend_executable(&backend_executable, args);
+    }
+
+    run_script_backend(args)
 }
 
 #[tauri::command]
@@ -209,7 +236,6 @@ fn delete_report_folder(folder_path: String) -> Result<(), String> {
         return Err("Only generated report folders can be deleted.".to_string());
     }
 
-    // Only delete folders that match the app's generated report shape.
     let has_known_report_files =
         target.join("flight_data.xlsx").exists() || target.join("mission_report.pdf").exists();
     if !has_known_report_files {
@@ -233,3 +259,4 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running drone log analyzer");
 }
+
