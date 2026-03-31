@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from math import asin, cos, degrees, radians, sin, sqrt
 from pathlib import Path
+import re
 from statistics import mean
 from typing import Any
 
@@ -463,6 +464,15 @@ def _infer_imu_count_from_messages(message_counts: Counter[str]) -> int | None:
 
     inferred = scaled_matches or imu_matches
     return (max(inferred) + 1) if inferred else None
+
+
+def _infer_imu_indices_from_message_records(message_records: list[dict[str, Any]]) -> list[int]:
+    detected_indices: set[int] = set()
+    for record in message_records:
+        text = str(record.get("text", "")).upper()
+        for match in re.finditer(r"\bIMU(\d+)\b", text):
+            detected_indices.add(int(match.group(1)))
+    return sorted(detected_indices)
 
 
 def _append_mission_boundary_records(
@@ -1256,10 +1266,11 @@ def build_analysis_result(parsed: ParsedLog) -> dict[str, Any]:
         for key in RC_CHANNEL_KEYS
         if channel_averages.get(key) is not None
     ]
-    imu_count = len(parsed.imu_instances) or None
+    inferred_imu_indices = sorted(set(parsed.imu_instances) | set(_infer_imu_indices_from_message_records(parsed.message_records)))
+    imu_count = len(inferred_imu_indices) or None
     if imu_count is None:
         imu_count = _infer_imu_count_from_messages(parsed.message_counts)
-    imu_summary = _format_imu_summary(parsed.imu_instances, imu_count)
+    imu_summary = _format_imu_summary(inferred_imu_indices, imu_count)
     proximity_sensor_count = len({row.get("sensor_id") for row in parsed.proximity_rows if row.get("sensor_id") is not None}) or None
     orientation_source = _infer_orientation_source(parsed.heading_rows)
     rc_health = _classify_rc_health(average_rssi, average_link_quality)
@@ -1488,6 +1499,8 @@ def _build_anomalies(
     if voltages and min(voltages) < 23:
         anomalies.append("Voltage dipped below 23 V")
     return anomalies
+
+
 
 
 
