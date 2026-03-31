@@ -7,6 +7,20 @@ use std::path::PathBuf;
 use std::process::Command;
 use tauri::{AppHandle, Manager};
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+#[cfg(target_os = "windows")]
+fn apply_windows_process_flags(command: &mut Command) {
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(target_os = "windows"))]
+fn apply_windows_process_flags(_command: &mut Command) {}
+
 fn workspace_python_engine_root() -> Result<PathBuf, String> {
     // Support both running from the workspace root and from src-tauri/ during development.
     let current_dir = std::env::current_dir().map_err(|err| err.to_string())?;
@@ -51,6 +65,7 @@ fn run_script_backend(args: &[String]) -> Result<Value, String> {
 
     for (program, prefix_args) in attempts {
         let mut command = Command::new(&program);
+        apply_windows_process_flags(&mut command);
         command.current_dir(&engine_root);
         for arg in &prefix_args {
             command.arg(arg);
@@ -90,6 +105,7 @@ fn run_backend_executable(executable_path: &PathBuf, args: &[String]) -> Result<
         .ok_or("Packaged backend executable has no parent directory")?;
 
     let mut command = Command::new(executable_path);
+    apply_windows_process_flags(&mut command);
     command.current_dir(working_dir);
     for arg in args {
         command.arg(arg);

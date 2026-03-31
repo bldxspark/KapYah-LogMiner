@@ -427,7 +427,8 @@ def _infer_orientation_source(heading_rows: list[dict[str, Any]]) -> str | None:
 
 def _format_imu_summary(imu_instances: list[int], fallback_count: int | None) -> str | None:
     if imu_instances:
-        return ", ".join(str(index) for index in imu_instances)
+        labels = ", ".join(f"IMU{index}" for index in imu_instances)
+        return f"{len(imu_instances)} | {labels}"
     if fallback_count is None:
         return None
     return str(fallback_count)
