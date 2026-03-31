@@ -4,6 +4,18 @@ KapYah LogMiner is a desktop drone-log analysis application developed for **KapY
 
 This software is part of the KapYah product and engineering ecosystem and is intended to support operational review, technical analysis, and export-ready reporting for supported flight logs.
 
+## Download
+
+- [Windows Installer (.exe)](https://github.com/bldxspark/KapYah-LogMiner/releases/download/v0.1.1/KapYah.LogMiner_0.1.1_x64-setup.exe)
+- [Windows Installer (.msi)](https://github.com/bldxspark/KapYah-LogMiner/releases/download/v0.1.1/KapYah.LogMiner_0.1.1_x64_en-US.msi)
+- [View Latest Release](https://github.com/bldxspark/KapYah-LogMiner/releases/tag/v0.1.1)
+
+### Windows Download Note
+
+After downloading the installer, Windows may show a SmartScreen warning such as "Windows protected your PC" or flag the file as potentially harmful.
+
+This happens because the installer is not yet signed with a trusted Windows code-signing certificate. It does **not** necessarily mean the installer is unsafe. If you trust the source, click **More info** and then **Run anyway** to continue.
+
 ## Company
 
 - Company: **KapYah Industries Pvt. Ltd.**
@@ -57,6 +69,11 @@ KapYah LogMiner currently supports:
   - open Excel
   - open PDF
   - delete report folder
+
+## Time Format
+
+- Elapsed playback time is shown as `HH:MM:SS`
+- Mission clock times are shown in `IST` using 24-hour format
 
 ## Technology Stack
 
