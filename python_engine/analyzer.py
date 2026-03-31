@@ -427,8 +427,7 @@ def _infer_orientation_source(heading_rows: list[dict[str, Any]]) -> str | None:
 
 def _format_imu_summary(imu_instances: list[int], fallback_count: int | None) -> str | None:
     if imu_instances:
-        labels = ", ".join(f"IMU{index}" for index in imu_instances)
-        return f"{len(imu_instances)} | {labels}"
+        return ", ".join(str(index) for index in imu_instances)
     if fallback_count is None:
         return None
     return str(fallback_count)
@@ -719,25 +718,16 @@ def _parse_mavlink_log(log_file: str) -> ParsedLog:
                 getattr(msg, "zacc", None),
                 "HIGHRES_IMU",
             )
-        elif msg_type == "SCALED_IMU2":
-            imu_instances.add(1)
+        elif msg_type.startswith("SCALED_IMU"):
+            suffix = msg_type.removeprefix("SCALED_IMU")
+            imu_instances.add((int(suffix) - 1) if suffix.isdigit() else 0)
             _append_vibration_row(
                 vibration_rows,
                 time_s,
                 getattr(msg, "xacc", None),
                 getattr(msg, "yacc", None),
                 getattr(msg, "zacc", None),
-                "SCALED_IMU2",
-            )
-        elif msg_type == "SCALED_IMU":
-            imu_instances.add(0)
-            _append_vibration_row(
-                vibration_rows,
-                time_s,
-                getattr(msg, "xacc", None),
-                getattr(msg, "yacc", None),
-                getattr(msg, "zacc", None),
-                "SCALED_IMU",
+                msg_type,
             )
         elif msg_type == "IMU":
             imu_index = getattr(msg, "I", None)
@@ -1497,6 +1487,9 @@ def _build_anomalies(
     if voltages and min(voltages) < 23:
         anomalies.append("Voltage dipped below 23 V")
     return anomalies
+
+
+
 
 
 

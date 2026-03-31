@@ -1948,3 +1948,47 @@ body[data-theme="light"] {
 
 
 
+
+.overview-findings-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.overview-finding-block {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface-panel-soft);
+}
+
+.overview-finding-block h5 {
+  margin: 0 0 0.75rem;
+  font-family: "Segoe UI Semibold", "Segoe UI", "Helvetica Neue", sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.overview-finding-block p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.6;
+}
+
+.finding-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--text);
+}
+
+.finding-list li + li {
+  margin-top: 0.45rem;
+}
+
+@media (max-width: 1040px) {
+  .overview-findings-grid {
+    grid-template-columns: 1fr;
+  }
+}
