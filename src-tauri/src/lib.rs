@@ -5,21 +5,48 @@ use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use tauri::{AppHandle, Manager};
 
-fn python_engine_root() -> Result<PathBuf, String> {
-    // Support both running from the workspace root and from src-tauri/.
+fn workspace_python_engine_root() -> Result<PathBuf, String> {
+    // Support both running from the workspace root and from src-tauri/ during development.
     let current_dir = std::env::current_dir().map_err(|err| err.to_string())?;
     let root = if current_dir.ends_with("src-tauri") {
-        current_dir.parent().map(PathBuf::from).ok_or("Failed to locate workspace root")?
+        current_dir
+            .parent()
+            .map(PathBuf::from)
+            .ok_or("Failed to locate workspace root")?
     } else {
         current_dir
     };
     Ok(root.join("python_engine"))
 }
 
-fn run_python_command(args: &[String]) -> Result<Value, String> {
-    let engine_root = python_engine_root()?;
+fn python_engine_root(app: &AppHandle) -> Result<PathBuf, String> {
+    // Prefer the bundled resource path for packaged builds, then fall back to the workspace path for dev.
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        let bundled_engine_root = resource_dir.join("python_engine");
+        if bundled_engine_root.exists() {
+            return Ok(bundled_engine_root);
+        }
+    }
+
+    let workspace_engine_root = workspace_python_engine_root()?;
+    if workspace_engine_root.exists() {
+        return Ok(workspace_engine_root);
+    }
+
+    Err("Python engine folder was not found in bundled resources or the workspace.".to_string())
+}
+
+fn run_python_command(app: &AppHandle, args: &[String]) -> Result<Value, String> {
+    let engine_root = python_engine_root(app)?;
     let script_path = engine_root.join("cli.py");
+    if !script_path.exists() {
+        return Err(format!(
+            "Python CLI was not found at {}",
+            script_path.to_string_lossy()
+        ));
+    }
 
     let mut attempts = Vec::new();
     attempts.push(("python".to_string(), Vec::<String>::new()));
@@ -61,7 +88,6 @@ fn run_python_command(args: &[String]) -> Result<Value, String> {
     Err("Python runtime not found. Install Python and project dependencies first.".to_string())
 }
 
-
 #[tauri::command]
 fn open_external_url(url: String) -> Result<(), String> {
     if !(url.starts_with("https://") || url.starts_with("http://") || url.starts_with("mailto:")) {
@@ -100,8 +126,8 @@ fn open_external_url(url: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn analyze_log(file_path: String) -> Result<Value, String> {
-    run_python_command(&["analyze".to_string(), file_path])
+fn analyze_log(app: tauri::AppHandle, file_path: String) -> Result<Value, String> {
+    run_python_command(&app, &["analyze".to_string(), file_path])
 }
 
 #[tauri::command]
@@ -109,7 +135,10 @@ fn default_downloads_dir() -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
         let user_profile = std::env::var("USERPROFILE").map_err(|err| err.to_string())?;
-        return Ok(PathBuf::from(user_profile).join("Downloads").to_string_lossy().into_owned());
+        return Ok(PathBuf::from(user_profile)
+            .join("Downloads")
+            .to_string_lossy()
+            .into_owned());
     }
 
     #[cfg(not(target_os = "windows"))]
@@ -120,14 +149,17 @@ fn default_downloads_dir() -> Result<String, String> {
 }
 
 #[tauri::command]
-fn generate_report(file_path: String, output_dir: Option<String>) -> Result<Value, String> {
+fn generate_report(
+    app: tauri::AppHandle,
+    file_path: String,
+    output_dir: Option<String>,
+) -> Result<Value, String> {
     let mut args = vec!["export".to_string(), file_path];
     if let Some(output_dir) = output_dir {
         args.push(output_dir);
     }
-    run_python_command(&args)
+    run_python_command(&app, &args)
 }
-
 
 #[tauri::command]
 fn open_path_in_system(path: String) -> Result<(), String> {
@@ -190,8 +222,14 @@ fn delete_report_folder(folder_path: String) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![open_external_url, analyze_log, default_downloads_dir, generate_report, open_path_in_system, delete_report_folder])
+        .invoke_handler(tauri::generate_handler![
+            open_external_url,
+            analyze_log,
+            default_downloads_dir,
+            generate_report,
+            open_path_in_system,
+            delete_report_folder
+        ])
         .run(tauri::generate_context!())
         .expect("error while running drone log analyzer");
 }
-

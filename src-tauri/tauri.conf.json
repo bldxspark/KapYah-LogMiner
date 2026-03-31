@@ -30,6 +30,9 @@
                    "targets":  "all",
                    "icon":  [
                                 "icons/icon.ico"
-                            ]
+                            ],
+                   "resources":  {
+                                     "../python_engine/":  "python_engine"
+                                 }
                }
 }
